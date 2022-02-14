@@ -7,13 +7,10 @@ CACHEDIR=/tmp/${USER}/singularity_cache
 export SINGULARITY_CACHEDIR=${CACHEDIR}
 
 # delete old images
-rm -rf $DIR/umami
-rm -rf $DIR/umami-gpu
+rm -rf $DIR/umamibase
 
 # download new images
-singularity build --sandbox $DIR/umami docker://btagging/umami:latest
-singularity build --sandbox $DIR/umami-gpu docker://btagging/umami:latest-gpu
+singularity build --sandbox $DIR/umamibase docker://gitlab-registry.cern.ch/atlas-flavor-tagging-tools/algorithms/umami/umamibase:latest
 
 # clean up
 rm -rf ${CACHEDIR}
-

@@ -2,7 +2,7 @@
 
 # Settings
 WORKDIR="/afs/desy.de/user/p/pgadow/atlas/ftag/umami"
-IMAGE="/nfs/dust/atlas/user/pgadow/ftag/containers/btagging/umami"
+IMAGE="/nfs/dust/atlas/user/pgadow/ftag/containers/btagging/umamibase"
 
 # Run Umami interactively
 singularity exec \
