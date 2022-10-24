@@ -1,0 +1,318 @@
+parameters:
+  # Path where the ntuples are saved
+  ntuple_path: &ntuple_path /nfs/dust/atlas/user/pgadow/ftag/data/ntuple_links/
+
+  # Path where the hybrid samples will be saved
+  sample_path: &sample_path /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/prepared_samples/
+
+  # Path where the merged and ready-to-train samples are saved
+  file_path: &file_path /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/preprocessed_samples/
+
+  # Name of the output file from the preprocessing used for training (has to be a .h5 file, no folder)
+  .outfile_name: &outfile_name /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/VR-hybrid.h5
+
+  # Name of the output file from the preprocessing used for hybrid validation (has to be a .h5 file, no folder)
+  # Will be ignored if hybrid validation is not used
+  .outfile_name_validation: &outfile_name_validation /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/VR-hybrid-validation.h5
+
+  # List of variables for training (yaml)
+  .var_file: &var_file /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/configs/Dips_Variables_R22.yaml
+
+  # Dictfile for the scaling and shifting (json)
+  .dict_file: &dict_file /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/scale_dicts/VR-scale_dict.json
+
+  # Intermediate file for the training sample indicies used in h5 format
+  .intermediate_index_file: &intermediate_index_file /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/preprocessed_samples/indicies.h5
+
+  # Intermediate file for the hybrid validation sample indicies used in h5 format
+  # Will be ignored if hybrid validation is not used
+  .intermediate_index_file_validation: &intermediate_index_file_validation /nfs/dust/atlas/user/pgadow/summie2022/data/vr_dips_samples/hybrid_ttbar_graviton/preprocessed_samples/indicies-hybrid-validation.h5
+
+
+# Defining anchor with outlier cuts that are used over and over again
+.outlier_cuts: &outlier_cuts
+  - JetFitterSecondaryVertex_mass:
+      operator: <
+      condition: 25000
+      NaNcheck: True
+  - JetFitterSecondaryVertex_energy:
+      operator: <
+      condition: 1e8
+      NaNcheck: True
+  - JetFitter_deltaR:
+      operator: <
+      condition: 0.6
+      NaNcheck: True
+  - relativeDeltaRToVRJet:
+      operator: ">"
+      condition: 1.0
+      NaNcheck: True
+
+# Defining yaml anchors to be used later, avoiding duplication
+.cuts_template_ttbar_train: &cuts_template_ttbar_train
+  cuts:
+    - eventNumber:
+        operator: mod_6_<=
+        condition: 3
+    - pt_btagJes:
+        operator: "<="
+        condition: 4.0e5
+    - jetPtRank:
+        operator: <
+        condition: 4
+    - *outlier_cuts
+
+.cuts_template_graviton_train: &cuts_template_graviton_train
+  cuts:
+    - eventNumber:
+        operator: mod_6_<=
+        condition: 3
+    - pt_btagJes:
+        operator: ">="
+        condition: 1.25e5
+    - jetPtRank:
+        operator: <
+        condition: 2
+    - *outlier_cuts
+
+.cuts_template_validation: &cuts_template_validation
+  cuts:
+    - eventNumber:
+        operator: mod_6_==
+        condition: 4
+    - *outlier_cuts
+
+.cuts_template_test: &cuts_template_test
+  cuts:
+    - eventNumber:
+        operator: mod_6_==
+        condition: 5
+    - *outlier_cuts
+
+preparation: &preparation
+  # Number of jets loaded per batch from the files for preparation.
+  batchsize: 50000
+
+  # Path to the .h5 ntuples from the h5 dumper.
+  ntuples:
+    ttbar:
+      path: *ntuple_path
+      file_pattern: user.pgadow.410470.e6337_s3681_r13144_p5169.tdd.TrackJets.22_2_82.22-08-01_vr_ftag1_00_output.h5/*.h5
+
+    graviton:
+      path: *ntuple_path
+      file_pattern: user.pgadow.504648.e8418_s3681_r13144_p5169.tdd.TrackJets.22_2_82.22-08-01_vr_ftag1_00_output.h5/*.h5
+
+  samples:
+    training_ttbar_bjets:
+      type: ttbar
+      category: bjets
+      n_jets: 10e6
+      <<: *cuts_template_ttbar_train
+      f_output:
+        path: *sample_path
+        file: bjets_training_ttbar_TrackJets.h5
+
+    training_ttbar_cjets:
+      type: ttbar
+      category: cjets
+      n_jets: 12745953
+      <<: *cuts_template_ttbar_train
+      f_output:
+        path: *sample_path
+        file: cjets_training_ttbar_TrackJets.h5
+
+    training_ttbar_ujets:
+      type: ttbar
+      category: ujets
+      n_jets: 20e6
+      <<: *cuts_template_ttbar_train
+      f_output:
+        path: *sample_path
+        file: ujets_training_ttbar_TrackJets.h5
+
+    training_ttbar_taujets:
+      type: ttbar
+      category: taujets
+      n_jets: 13e6
+      <<: *cuts_template_ttbar_train
+      f_output:
+        path: *sample_path
+        file: taujets_training_ttbar_TrackJets.h5
+
+    training_graviton_bjets:
+      type: graviton
+      category: bjets
+      n_jets: 10e6
+      <<: *cuts_template_graviton_train
+      f_output:
+        path: *sample_path
+        file: bjets_training_graviton_TrackJets.h5
+
+    training_graviton_cjets:
+      type: graviton
+      category: cjets
+      # Number of c jets available in MC16d
+      n_jets: 10e6
+      <<: *cuts_template_graviton_train
+      f_output:
+        path: *sample_path
+        file: cjets_training_graviton_TrackJets.h5
+
+    training_graviton_ujets:
+      type: graviton
+      category: ujets
+      n_jets: 10e6
+      <<: *cuts_template_graviton_train
+      f_output:
+        path: *sample_path
+        file: ujets_training_graviton_TrackJets.h5
+
+    training_graviton_taujets:
+      type: graviton
+      category: taujets
+      n_jets: 10e6
+      <<: *cuts_template_graviton_train
+      f_output:
+        path: *sample_path
+        file: taujets_training_graviton_TrackJets.h5
+
+    validation_ttbar:
+      type: ttbar
+      category: inclusive
+      n_jets: 4e6
+      <<: *cuts_template_validation
+      f_output:
+        path: *sample_path
+        file: inclusive_validation_ttbar_TrackJets.h5
+
+    testing_ttbar:
+      type: ttbar
+      category: inclusive
+      n_jets: 4e6
+      <<: *cuts_template_test
+      f_output:
+        path: *sample_path
+        file: inclusive_testing_ttbar_TrackJets.h5
+
+    validation_graviton:
+      type: graviton
+      category: inclusive
+      n_jets: 4e6
+      <<: *cuts_template_validation
+      f_output:
+        path: *sample_path
+        file: inclusive_validation_graviton_TrackJets.h5
+
+    testing_graviton:
+      type: graviton
+      category: inclusive
+      n_jets: 4e6
+      <<: *cuts_template_test
+      f_output:
+        path: *sample_path
+        file: inclusive_testing_graviton_TrackJets.h5
+
+sampling: &sampling
+  # Classes which are used in the resampling. Order is important.
+  # The order needs to be the same as in the training config!
+  class_labels: [ujets, cjets, bjets]
+
+  # Decide, which resampling method is used.
+  method: count
+
+  # The options depend on the sampling method
+  options: &sampling_options
+    sampling_variables:
+      - pt_btagJes:
+          # bins take either a list containing the np.linspace arguments
+          # or a list of them
+          # For PDF sampling: must be the np.linspace arguments.
+          #   - list of list, one list for each category (in samples)
+          #   - define the region of each category.
+          bins: [[0, 600000, 351], [650000, 6000000, 84]]
+
+      - absEta_btagJes:
+          # For PDF sampling: same structure as in pt_btagJes.
+          bins: [0, 2.5, 10]
+
+    # Decide, which of the in preparation defined samples are used in the resampling.
+    samples:
+      ttbar:
+        - training_ttbar_bjets
+        - training_ttbar_cjets
+        - training_ttbar_ujets
+      graviton:
+        - training_graviton_bjets
+        - training_graviton_cjets
+        - training_graviton_ujets
+
+    custom_n_jets_initial:
+      # these are empiric values ensuring a smooth hybrid sample.
+      # These values are retrieved for a hybrid ttbar + graviton sample for the count method!
+      training_graviton_bjets: 5.5e6
+      training_graviton_cjets: 11.5e6
+      training_graviton_ujets: 13.5e6
+
+    # Fractions of ttbar/graviton jets in final training set. This needs to add up to one.
+    fractions:
+      ttbar: 0.7
+      graviton: 0.3
+
+    # number of training jets
+    # For PDF sampling: the number of target jets per class!
+    #                   So if you set n_jets=1_000_000 and you have 3 output classes
+    #                   you will end up with 3_000_000 jets
+    # For other sampling methods: total number of jets after resampling
+    # If set to -1: max out to target numbers (limited by fractions ratio)
+    n_jets: 25e6
+
+    # Bool, if track information (for DIPS etc.) are saved.
+    save_tracks: True
+
+    # Name(s) of the track collection(s) to use.
+    tracks_names: ["tracks_loose"]
+
+    # Bool, if track labels are processed
+    save_track_labels: False
+
+    # String with the name of the track truth variable
+    track_truth_variables: []
+
+    # this stores the indices per sample into an intermediate file
+    intermediate_index_file: *intermediate_index_file
+
+    # for method: weighting
+    # relative to which distribution the weights should be calculated
+    weighting_target_flavour: 'bjets'
+
+    # If you want to attach weights to the final files
+    bool_attach_sample_weights: False
+
+    # How many jets you want to use for the plotting of the results
+    # Give null (the yaml None) if you don't want to plot them
+    n_jets_to_plot: 3e4
+
+# Name of the output file from the preprocessing
+outfile_name: *outfile_name
+plot_name: TrackJets_ext-hybrid
+
+# Label for the distribution plots of the resampling
+plot_sample_label: "$\\sqrt{s}=13$ TeV, VR track jets (ttbar+graviton)"
+
+# Variable dict which is used for scaling and shifting
+var_file: *var_file
+
+# Dictfile for the scaling and shifting (json)
+dict_file: *dict_file
+
+# compression for final output files (null/gzip)
+compression: null
+
+# save final output files with specified precision
+precision: float32
+
+# Options for the conversion to tfrecords
+convert_to_tfrecord:
+  chunk_size: 5000
+  N_add_vars: null
